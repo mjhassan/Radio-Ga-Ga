@@ -8,6 +8,8 @@
 
 import UIKit
 import MediaPlayer
+import Spring
+import SwiftyJSON
 
 //*****************************************************************
 // Protocol
@@ -29,8 +31,7 @@ class NowPlayingViewController: UIViewController {
     @IBOutlet weak var albumHeightConstraint: NSLayoutConstraint!
     @IBOutlet weak var albumImageView: SpringImageView!
     @IBOutlet weak var artistLabel: UILabel!
-    @IBOutlet weak var pauseButton: UIButton!
-    @IBOutlet weak var playButton: UIButton!
+    @IBOutlet weak var playPauseButton: UIButton!
     @IBOutlet weak var songLabel: SpringLabel!
     @IBOutlet weak var stationDescLabel: UILabel!
     @IBOutlet weak var volumeParentView: UIView!
@@ -91,7 +92,7 @@ class NowPlayingViewController: UIViewController {
             albumImageView.image = track.artworkImage
             
             if !track.isPlaying {
-                pausePressed()
+                playPausePressed()
             } else {
                 nowPlayingImageView.startAnimating()
             }
@@ -190,32 +191,35 @@ class NowPlayingViewController: UIViewController {
     // MARK: - Player Controls (Play/Pause/Volume)
     //*****************************************************************
     
-    @IBAction func playPressed() {
-        track.isPlaying = true
-        playButtonEnable(false)
-        radioPlayer.play()
-        updateLabels()
+    @IBAction func playPausePressed() {
+        if track.isPlaying {
+            track.isPlaying = false
+            playButtonEnable()
+            radioPlayer.pause()
+            updateLabels("Station Paused...")
+            nowPlayingImageView.stopAnimating()
+            
+            // Update StationsVC
+            self.delegate?.trackPlayingToggled(self.track)
+        }
+        else {
+            track.isPlaying = true
+            playButtonEnable(false)
+            radioPlayer.play()
+            updateLabels()
+            
+            // songLabel Animation
+            songLabel.animation = "flash"
+            songLabel.animate()
+            
+            // Start NowPlaying Animation
+            nowPlayingImageView.startAnimating()
+            
+            // Update StationsVC
+            self.delegate?.trackPlayingToggled(self.track)
+        }
         
-        // songLabel Animation
-        songLabel.animation = "flash"
-        songLabel.animate()
         
-        // Start NowPlaying Animation
-        nowPlayingImageView.startAnimating()
-        
-        // Update StationsVC
-        self.delegate?.trackPlayingToggled(self.track)
-    }
-    
-    @IBAction func pausePressed() {
-        track.isPlaying = false
-        playButtonEnable()
-        radioPlayer.pause()
-        updateLabels("Station Paused...")
-        nowPlayingImageView.stopAnimating()
-        
-        // Update StationsVC
-        self.delegate?.trackPlayingToggled(self.track)
     }
     
     @IBAction func volumeChanged(_ sender:UISlider) {
@@ -268,12 +272,10 @@ class NowPlayingViewController: UIViewController {
     
     func playButtonEnable(_ enabled: Bool = true) {
         if enabled {
-            playButton.isEnabled = true
-            pauseButton.isEnabled = false
+            playPauseButton.setImage(UIImage(named:"btn-play"), for: .normal)
             track.isPlaying = false
         } else {
-            playButton.isEnabled = false
-            pauseButton.isEnabled = true
+            playPauseButton.setImage(UIImage(named:"btn-pause"), for: .normal)
             track.isPlaying = true
         }
     }
@@ -507,9 +509,9 @@ class NowPlayingViewController: UIViewController {
         //MPRemoteCommandCenter.sharedCommandCenter().previousTrackCommand.enabled = false
         //MPRemoteCommandCenter.sharedCommandCenter().nextTrackCommand.enabled = false
         MPRemoteCommandCenter.shared().playCommand.isEnabled = true
-        MPRemoteCommandCenter.shared().playCommand.addTarget(self, action: #selector(playPressed))
+        MPRemoteCommandCenter.shared().playCommand.addTarget(self, action: #selector(playPausePressed))
         MPRemoteCommandCenter.shared().pauseCommand.isEnabled = true
-        MPRemoteCommandCenter.shared().pauseCommand.addTarget(self, action: #selector(pausePressed))
+        MPRemoteCommandCenter.shared().pauseCommand.addTarget(self, action: #selector(playPausePressed))
     }
     
     override func remoteControlReceived(with receivedEvent: UIEvent?) {
@@ -518,10 +520,8 @@ class NowPlayingViewController: UIViewController {
         if receivedEvent!.type == UIEventType.remoteControl {
             
             switch receivedEvent!.subtype {
-            case .remoteControlPlay:
-                playPressed()
-            case .remoteControlPause:
-                pausePressed()
+            case .remoteControlPlay, .remoteControlPause:
+                playPausePressed()
             default:
                 break
             }

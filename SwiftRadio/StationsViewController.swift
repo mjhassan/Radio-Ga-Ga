@@ -9,6 +9,7 @@
 import UIKit
 import MediaPlayer
 import AVFoundation
+import SwiftyJSON
 
 class StationsViewController: UIViewController {
 
@@ -65,7 +66,7 @@ class StationsViewController: UIViewController {
             success = false
         }
         if !success {
-            if kDebugLog { print("Failed to set audio session category.  Error: \(error)") }
+            if kDebugLog { print("Failed to set audio session category.  Error: \(error.debugDescription)") }
         }
         
         // Set audioSession as active
